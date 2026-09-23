@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cortex.INC — African Superintelligence</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  height:100vh;
+  background:#03100a;
+  color:#ecfff3;
+  font-family:Arial,sans-serif;
+  display:flex;
+  flex-direction:column;
+}
+header{
+  padding:16px;
+  text-align:center;
+  background:#061b11;
+  border-bottom:1px solid #17452e;
+}
+.logo{
+  font-size:28px;
+  font-weight:800;
+  color:#43ff91;
+}
+.sub{color:#9fc8ad;margin-top:4px}
+.creator{font-size:12px;color:#6f9b7e;margin-top:7px}
+
+#chat{
+  flex:1;
+  overflow-y:auto;
+  padding:16px;
+}
+.message{
+  max-width:88%;
+  padding:13px 15px;
+  margin:0 0 12px;
+  border-radius:16px;
+  line-height:1.55;
+  white-space:pre-wrap;
+  word-wrap:break-word;
+}
+.user{
+  margin-left:auto;
+  background:#12633c;
+}
+.assistant{
+  margin-right:auto;
+  background:#0c2116;
+  border:1px solid #1b4930;
+}
+
+#typing{
+  display:none;
+  padding:0 18px 8px;
+  color:#7fae8e;
+  font-size:13px;
+}
+
+#bottom{
+  padding:12px;
+  background:#061b11;
+  border-top:1px solid #17452e;
+}
+.row{display:flex;gap:8px}
+textarea{
+  flex:1;
+  min-height:52px;
+  max-height:140px;
+  resize:none;
+  border:1px solid #285c40;
+  border-radius:14px;
+  background:#04120b;
+  color:white;
+  padding:14px;
+  outline:none;
+  font-size:15px;
+}
+button{
+  border:0;
+  border-radius:14px;
+  background:#32e77b;
+  color:#03100a;
+  font-weight:bold;
+  padding:0 18px;
+}
+button:disabled{opacity:.5}
+.small{
+  text-align:center;
+  font-size:11px;
+  color:#668b73;
+  margin-top:8px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">CORTEX.INC</div>
+  <div class="sub">African Superintelligence</div>
+  <div class="creator">
+    CEO: Mark Joel Bisong · Mark Joel Tech Labs
+  </div>
+</header>
+
+<main id="chat"></main>
+
+<div id="typing">Cortex is thinking...</div>
+
+<div id="bottom">
+  <div class="row">
+    <textarea id="input"
+      placeholder="Ask Cortex anything..."
+      rows="1"></textarea>
+
+    <button id="send" onclick="sendMessage()">Send</button>
+  </div>
+
+  <div class="small">
+    Your conversations are saved on this device.
+  </div>
+</div>
+
+<script>
+const chat = document.getElementById("chat");
+const input = document.getElementById("input");
+const send = document.getElementById("send");
+const typing = document.getElementById("typing");
+
+const MEMORY_KEY = "cortex_conversation_memory";
+
+let history = [];
+
+try {
+  history = JSON.parse(localStorage.getItem(MEMORY_KEY)) || [];
+} catch {
+  history = [];
+}
+
+function saveMemory(){
+  localStorage.setItem(
+    MEMORY_KEY,
+    JSON.stringify(history.slice(-50))
+  );
+}
+
+function addMessage(text, role, save=true){
+  const box = document.createElement("div");
+  box.className = "message " + role;
+  box.textContent = text;
+
+  chat.appendChild(box);
+  chat.scrollTop = chat.scrollHeight;
+
+  if(save){
+    history.push({role:role,text:text});
+    saveMemory();
+  }
+}
+
+function loadMemory(){
+  if(history.length === 0){
+    addMessage(
+      "Hello Mark Joel 👋\nI am Cortex.INC — African Superintelligence.\n\nAsk me anything and I'll do my best to help.",
+      "assistant",
+      false
+    );
+    return;
+  }
+
+  history.forEach(item=>{
+    addMessage(item.text,item.role,false);
+  });
+}
+
+async function sendMessage(){
+
+  const message = input.value.trim();
+  if(!message) return;
+
+  addMessage(message,"user");
+
+  input.value="";
+  send.disabled=true;
+  typing.style.display="block";
+
+  try{
+
+    /*
+      IMPORTANT:
+      No API key is stored in this HTML.
+
+      The secure backend at /api/chat will choose
+      between your AI providers and return the answer.
+    */
+
+    const response = await fetch("/api/chat",{
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        message:message,
+        history:history.slice(-20)
+      })
+    });
+
+    const data = await response.json();
+
+    if(!response.ok){
+      throw new Error(
+        data.error || "Cortex server error"
+      );
+    }
+
+    addMessage(
+      data.reply || "I didn't receive a response.",
+      "assistant"
+    );
+
+  }catch(error){
+
+    addMessage(
+      "Cortex could not connect to its AI server.\n\n" +
+      "Backend message: " + error.message,
+      "assistant"
+    );
+
+  }finally{
+
+    typing.style.display="none";
+    send.disabled=false;
+    input.focus();
+
+  }
+}
+
+input.addEventListener("keydown",function(e){
+  if(e.key==="Enter" && !e.shiftKey){
+    e.preventDefault();
+    sendMessage();
+  }
+});
+
+loadMemory();
+</script>
+
+</body>
+</html>
